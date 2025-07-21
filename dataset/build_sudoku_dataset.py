@@ -16,7 +16,7 @@ cli = ArgParser()
 
 
 class DataProcessConfig(BaseModel):
-    source_repo: str = "imone/sudoku-hard-v2"
+    source_repo: str = "sapientinc/sudoku-extreme"
     output_dir: str = "data/sudoku-extreme-full"
 
     subsample_size: Optional[int] = None

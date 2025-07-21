@@ -20,7 +20,7 @@ cli = ArgParser()
 
 
 class DataProcessConfig(BaseModel):
-    source_repo: str = "imone/small-sample-challenge-maze-30x30-hard"
+    source_repo: str = "sapientinc/maze-30x30-hard-1k"
     output_dir: str = "data/maze-30x30-hard-1k"
 
     subsample_size: Optional[int] = None
