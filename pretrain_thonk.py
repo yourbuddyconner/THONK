@@ -95,6 +95,10 @@ class DataArguments:
         default=10000,
         metadata={"help": "Number of samples to use for evaluation"}
     )
+    max_train_samples: Optional[int] = field(
+        default=None,
+        metadata={"help": "Maximum number of training samples to use (for debugging/testing)"}
+    )
     overwrite_cache: bool = field(
         default=False,
         metadata={"help": "Overwrite the cached preprocessed datasets"}
@@ -416,6 +420,12 @@ def main():
         )
         
         train_dataset = dataset_handler.create_train_dataset()
+        
+        # Apply max_train_samples limit if specified
+        if data_args.max_train_samples is not None:
+            logger.info(f"Limiting training data to {data_args.max_train_samples} samples")
+            train_dataset = train_dataset.take(data_args.max_train_samples)
+        
         eval_dataset = dataset_handler.create_eval_dataset(data_args.eval_dataset_size)
     else:
         raise ValueError("No datasets configuration provided!")

@@ -15,15 +15,14 @@ max_position_embeddings: 512  # Shorter context for testing
 use_act: true
 halt_max_steps: 8  # Fewer steps for testing
 
-# Dataset configuration - Smaller datasets for quick testing
+# Dataset configuration - Using more stable, simpler dataset
 datasets:
-  # Use the SmolLM corpus Cosmopedia subset
-  - name: "HuggingFaceTB/smollm-corpus"
-    config: "cosmopedia-v2"  # Specify which subset to use
+  # TinyStories is great for initial training - consistent, simple patterns
+  - name: "roneneldan/TinyStories"
     split: "train"
     streaming: true
     weight: 1.0
-    description: "Cosmopedia v2 synthetic textbooks"
+    description: "Simple coherent stories for stable training"
 
   
 
@@ -33,35 +32,36 @@ overwrite_output_dir: true
 do_train: true
 do_eval: true
 eval_strategy: "steps"
-eval_steps: 100  # Evaluate frequently for testing
+eval_steps: 250  # Less frequent eval to save time
 save_strategy: "steps"
-save_steps: 500
+save_steps: 1000
 save_total_limit: 2
 
 # Limited training for testing
-max_steps: 1000  # Just 1000 steps for testing
+max_steps: 10000  # Reasonable for limited samples
 per_device_train_batch_size: 2
 per_device_eval_batch_size: 2
-gradient_accumulation_steps: 4  # Effective batch size = 8
+gradient_accumulation_steps: 4  # Effective batch size = 8 (better for stability)
 gradient_checkpointing: false  # Not supported by THONK model yet
 
 # Learning rate schedule
-learning_rate: 0.0006  # 6e-4 - increased for better learning
-lr_scheduler_type: "cosine"
-warmup_steps: 100
-weight_decay: 0.01  # Reduced from 0.1 - was too aggressive
+learning_rate: 0.0001  # 1e-4 - conservative for stability
+lr_scheduler_type: "cosine"  # Simple cosine schedule
+warmup_steps: 500  # Longer warmup for stability
+weight_decay: 0.05  # Slightly increased for regularization
 adam_beta1: 0.9
-adam_beta2: 0.95
+adam_beta2: 0.98  # Increased for more stable momentum
 adam_epsilon: 0.00000001  # 1e-8
-max_grad_norm: 1.0
+max_grad_norm: 0.5  # Reduced for more stable gradients
 
 # Data processing
 block_size: 512  # Shorter sequences for testing
 preprocessing_num_workers: 4
 dataloader_num_workers: 2
-stream_buffer_size: 1000  # Smaller buffers for testing
-shuffle_buffer_size: 5000
+stream_buffer_size: 2000  # Increased for better data variety
+shuffle_buffer_size: 10000  # Increased to avoid data repetition
 eval_dataset_size: 500  # Small eval set
+max_train_samples: 100000  # Limit training samples for testing (100k samples)
 
 # Tokenizer
 tokenizer_name: "gpt2"
@@ -76,7 +76,7 @@ optim: "adamw_torch"
 # Logging
 logging_steps: 10
 logging_first_step: true
-report_to: "none"  # Disable wandb for testing
+report_to: "wandb"  # Re-enable wandb to track recovery
 
 # Misc
 seed: 42
