@@ -58,20 +58,9 @@ def main():
         print(f"Loading trained model from {model_path}...")
         model = THONK.from_pretrained(model_path)
     else:
-        print("No trained model found. Using untrained model...")
-        from models.thonk_model import THONKConfig
-        config = THONKConfig(
-            vocab_size=tokenizer.vocab_size,
-            hidden_size=256,
-            num_heads=4,
-            H_layers=2,
-            L_layers=2,
-            H_cycles=1,
-            L_cycles=1,
-            max_position_embeddings=512,
-            forward_dtype="float32",
-        )
-        model = THONK(config)
+        print("No trained model found. Please check the model path.")
+        exit(1)
+        
     
     # Move to device
     device = "cuda" if torch.cuda.is_available() else "cpu"
