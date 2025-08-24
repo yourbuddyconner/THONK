@@ -13,6 +13,9 @@ from typing import Optional, Dict, List, Any
 from itertools import chain
 import random
 
+# Set tokenizers parallelism before importing transformers to avoid warnings
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import torch
 from datasets import load_dataset, interleave_datasets, Dataset, IterableDataset
 from transformers import (
@@ -206,10 +209,11 @@ class PretrainingDataset:
             dataset = self.load_and_process_dataset(config)
             
             # Convert non-streaming datasets to streaming if needed
-            if has_streaming and not hasattr(dataset, '__iter__'):
-                # Convert regular Dataset to IterableDataset
-                from datasets import IterableDataset
-                dataset = dataset.to_iterable_dataset()
+            if has_streaming and not isinstance(dataset, IterableDataset):
+                # Note: mixing streaming and non-streaming datasets in interleave_datasets
+                # requires all to be the same type
+                logger.warning(f"Dataset {config['name']} is not streaming but others are. "
+                              "Consider setting streaming=True for all datasets for better performance.")
             
             # Tokenize the dataset
             if hasattr(dataset, 'column_names'):
@@ -262,7 +266,7 @@ class PretrainingDataset:
             # Load validation split if available, otherwise use train
             config_eval = config.copy()
             config_eval["split"] = "validation" if "validation" in config.get("available_splits", []) else "train"
-            config_eval["streaming"] = False  # Load eval data fully
+            # Keep streaming setting from original config
             
             dataset = self.load_and_process_dataset(config_eval)
             
@@ -277,14 +281,23 @@ class PretrainingDataset:
                 remove_columns=column_names if column_names else None,
             )
             
-            # Sample - only for non-streaming datasets
-            if not config.get('streaming', True) and isinstance(dataset, Dataset):
-                dataset_len = len(dataset)
-                if dataset_len > samples_per_dataset:
-                    indices = random.sample(range(dataset_len), samples_per_dataset)
-                    dataset = dataset.select(indices)
-            
-            eval_samples.extend(dataset)
+            # For streaming datasets, take only the needed samples
+            if config.get('streaming', True):
+                # Collect samples from streaming dataset
+                sample_count = 0
+                for sample in dataset:
+                    if sample_count >= samples_per_dataset:
+                        break
+                    eval_samples.append(sample)
+                    sample_count += 1
+            else:
+                # Sample from non-streaming datasets
+                if isinstance(dataset, Dataset):
+                    dataset_len = len(dataset)
+                    if dataset_len > samples_per_dataset:
+                        indices = random.sample(range(dataset_len), samples_per_dataset)
+                        dataset = dataset.select(indices)
+                    eval_samples.extend(dataset)
         
         # Create dataset from samples
         eval_dataset = Dataset.from_list(eval_samples[:size])

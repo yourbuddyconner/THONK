@@ -44,7 +44,7 @@ gradient_accumulation_steps: 8  # Effective batch size = 32
 gradient_checkpointing: true  # Enable for memory efficiency
 
 # Learning rate schedule (Chinchilla-optimal)
-learning_rate: 6e-4  # Peak learning rate
+learning_rate: 0.0006  # Peak learning rate
 lr_scheduler_type: "cosine"
 warmup_steps: 10000  # 2% warmup
 weight_decay: 0.1
