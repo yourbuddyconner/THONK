@@ -60,4 +60,4 @@ gradient_checkpointing: false  # Enable if running out of memory
 
 # Misc
 seed: 42
-report_to: "none"  # Change to "wandb" if you want to use Weights & Biases
+report_to: "none"  # Change to "wandb" to enable W&B logging (project: THONK)

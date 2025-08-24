@@ -199,6 +199,19 @@ def main():
     # Set seed for reproducibility
     set_seed(training_args.seed)
     
+    # Initialize W&B with THONK project name if enabled
+    if "wandb" in training_args.report_to:
+        wandb.init(
+            project="THONK",
+            name=training_args.run_name if training_args.run_name else None,
+            config={
+                "model_args": vars(model_args),
+                "data_args": vars(data_args),
+                "training_args": vars(training_args),
+            },
+            reinit=True,  # Allow multiple runs in same script
+        )
+    
     # Setup logging
     log_level = logging.INFO
     logger.setLevel(log_level)
