@@ -75,11 +75,17 @@ class HierarchicalReasoningModel_ACTV1Block(nn.Module):
         self.norm_eps = config.rms_norm_eps
 
     def forward(self, cos_sin: CosSin, hidden_states: torch.Tensor) -> torch.Tensor:
-        # Post Norm
-        # Self Attention
-        hidden_states = rms_norm(hidden_states + self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states), variance_epsilon=self.norm_eps)
-        # Fully Connected
-        hidden_states = rms_norm(hidden_states + self.mlp(hidden_states), variance_epsilon=self.norm_eps)
+        # Pre-Norm architecture for better training stability
+        # Self Attention block
+        residual = hidden_states
+        hidden_states = rms_norm(hidden_states, variance_epsilon=self.norm_eps)
+        hidden_states = residual + self.self_attn(cos_sin=cos_sin, hidden_states=hidden_states)
+        
+        # Fully Connected block
+        residual = hidden_states
+        hidden_states = rms_norm(hidden_states, variance_epsilon=self.norm_eps)
+        hidden_states = residual + self.mlp(hidden_states)
+        
         return hidden_states
 
 
@@ -106,11 +112,17 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         self.forward_dtype = getattr(torch, self.config.forward_dtype)
 
         # I/O
-        self.embed_scale  = math.sqrt(self.config.hidden_size)
-        embed_init_std = 1.0 / self.embed_scale
+        # No embedding scaling - modern transformers don't scale embeddings
+        # Proper initialization is sufficient for stable training
+        self.embed_scale  = 1.0
+        embed_init_std = 0.02  # Standard GPT-2/GPT-3 initialization
 
         self.embed_tokens = CastedEmbedding(self.config.vocab_size, self.config.hidden_size, init_std=embed_init_std, cast_to=self.forward_dtype)
+        # Keep CastedLinear but reinitialize with proper std
         self.lm_head      = CastedLinear(self.config.hidden_size, self.config.vocab_size, bias=False)
+        # Override the default initialization with larger std for output layer
+        with torch.no_grad():
+            nn.init.normal_(self.lm_head.weight, mean=0.0, std=0.02)
         self.q_head       = CastedLinear(self.config.hidden_size, 2, bias=True)
 
         self.puzzle_emb_len = -(self.config.puzzle_emb_ndim // -self.config.hidden_size)  # ceil div
@@ -133,9 +145,12 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         self.H_level = HierarchicalReasoningModel_ACTV1ReasoningModule(layers=[HierarchicalReasoningModel_ACTV1Block(self.config) for _i in range(self.config.H_layers)])
         self.L_level = HierarchicalReasoningModel_ACTV1ReasoningModule(layers=[HierarchicalReasoningModel_ACTV1Block(self.config) for _i in range(self.config.L_layers)])
         
-        # Initial states
-        self.register_buffer("H_init", trunc_normal_init_(torch.empty(self.config.hidden_size, dtype=self.forward_dtype), std=1), persistent=True)
-        self.register_buffer("L_init", trunc_normal_init_(torch.empty(self.config.hidden_size, dtype=self.forward_dtype), std=1), persistent=True)
+        # Add final layer norm before output (standard in GPT-2/GPT-3)
+        self.ln_f = nn.LayerNorm(self.config.hidden_size, eps=self.config.rms_norm_eps)
+        
+        # Initial states - use zeros for stability (common in RNNs)
+        self.register_buffer("H_init", torch.zeros(self.config.hidden_size, dtype=self.forward_dtype), persistent=True)
+        self.register_buffer("L_init", torch.zeros(self.config.hidden_size, dtype=self.forward_dtype), persistent=True)
 
         # Q head special init
         # Init Q to (almost) zero for faster learning during bootstrapping
@@ -162,8 +177,8 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
             # scale by 1/sqrt(2) to maintain forward variance
             embedding = 0.707106781 * (embedding + self.embed_pos.embedding_weight.to(self.forward_dtype))
 
-        # Scale
-        return self.embed_scale * embedding
+        # No scaling - using proper initialization instead
+        return embedding
 
     def empty_carry(self, batch_size: int):
         # Get device from model parameters
@@ -207,10 +222,12 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
 
         # LM Outputs
         new_carry = HierarchicalReasoningModel_ACTV1InnerCarry(z_H=z_H.detach(), z_L=z_L.detach())  # New carry no grad
-        output = self.lm_head(z_H)[:, self.puzzle_emb_len:]
+        # Apply final layer norm before lm_head (standard in GPT-2/GPT-3)
+        z_H_normed = self.ln_f(z_H)
+        output = self.lm_head(z_H_normed)[:, self.puzzle_emb_len:]
 
-        # Q head
-        q_logits = self.q_head(z_H[:, 0]).to(torch.float32)
+        # Q head (also use normalized hidden states)
+        q_logits = self.q_head(z_H_normed[:, 0]).to(torch.float32)
         
         return new_carry, output, (q_logits[..., 0], q_logits[..., 1])
 

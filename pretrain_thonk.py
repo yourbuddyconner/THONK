@@ -178,6 +178,16 @@ class PretrainingDataset:
         # Add labels (same as input_ids for language modeling)
         tokenized["labels"] = tokenized["input_ids"].copy()
         
+        # Mask padding tokens in labels with -100 so they're ignored by loss
+        if isinstance(tokenized["labels"][0], list):
+            # Batched processing
+            for i in range(len(tokenized["labels"])):
+                labels = tokenized["labels"][i]
+                tokenized["labels"][i] = [-100 if token == self.tokenizer.pad_token_id else token for token in labels]
+        else:
+            # Single example
+            tokenized["labels"] = [-100 if token == self.tokenizer.pad_token_id else token for token in tokenized["labels"]]
+        
         return tokenized
     
     def group_texts(self, examples):
@@ -227,11 +237,8 @@ class PretrainingDataset:
                 remove_columns=column_names if column_names else None,
             )
             
-            # Group texts for efficient training
-            dataset = dataset.map(
-                self.group_texts,
-                batched=True,
-            )
+            # Skip group_texts since we're already padding to max_length
+            # group_texts would destroy our padding token masking
             
             datasets.append(dataset)
             weights.append(config.get("weight", 1.0))
@@ -281,6 +288,8 @@ class PretrainingDataset:
                 batched=True,
                 remove_columns=column_names if column_names else None,
             )
+            
+            # Skip group_texts to preserve padding token masking
             
             # For streaming datasets, take only the needed samples
             if config.get('streaming', True):
@@ -387,17 +396,7 @@ def main():
         else:
             config = THONKConfig()
         model = THONK(config)
-        
-        # Fix initialization of lm_head for stable training
-        # The default initialization (std=1/sqrt(hidden_size)) is too small for the output layer
-        # This causes extremely high initial losses (30-45 instead of ~10.8)
-        logger.info("Reinitializing lm_head weights for stable training...")
-        with torch.no_grad():
-            # Use a larger standard deviation for the output layer
-            # This is a common practice in language models
-            std = 0.02  # Standard initialization for output layers in transformers
-            model.hrm.lm_head.weight.data.normal_(mean=0.0, std=std)
-            logger.info(f"Reinitialized lm_head with std={std}")
+        # No need for lm_head reinitialization - fixed in the model architecture
     
     # Log model size
     total_params = sum(p.numel() for p in model.parameters())

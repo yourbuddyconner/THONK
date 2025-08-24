@@ -295,7 +295,8 @@ class THONK(PreTrainedModel, GenerationMixin):
             shift_labels = labels[..., 1:].contiguous()
             
             # Flatten the tokens
-            loss_fct = nn.CrossEntropyLoss()
+            # Use ignore_index=-100 to ignore padding tokens in loss calculation
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
             loss = loss_fct(
                 shift_logits.view(-1, self.config.vocab_size),
                 shift_labels.view(-1)
