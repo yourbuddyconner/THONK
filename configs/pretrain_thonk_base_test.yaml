@@ -46,10 +46,10 @@ gradient_accumulation_steps: 4  # Effective batch size = 8
 gradient_checkpointing: false  # Not supported by THONK model yet
 
 # Learning rate schedule
-learning_rate: 0.0003  # 3e-4
+learning_rate: 0.0006  # 6e-4 - increased for better learning
 lr_scheduler_type: "cosine"
 warmup_steps: 100
-weight_decay: 0.1
+weight_decay: 0.01  # Reduced from 0.1 - was too aggressive
 adam_beta1: 0.9
 adam_beta2: 0.95
 adam_epsilon: 0.00000001  # 1e-8

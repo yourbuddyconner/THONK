@@ -145,12 +145,12 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
         self.H_level = HierarchicalReasoningModel_ACTV1ReasoningModule(layers=[HierarchicalReasoningModel_ACTV1Block(self.config) for _i in range(self.config.H_layers)])
         self.L_level = HierarchicalReasoningModel_ACTV1ReasoningModule(layers=[HierarchicalReasoningModel_ACTV1Block(self.config) for _i in range(self.config.L_layers)])
         
-        # Add final layer norm before output (standard in GPT-2/GPT-3)
-        self.ln_f = nn.LayerNorm(self.config.hidden_size, eps=self.config.rms_norm_eps)
+        # Add final RMS norm before output (consistent with the rest of the model)
+        self.final_norm_eps = self.config.rms_norm_eps
         
-        # Initial states - use zeros for stability (common in RNNs)
-        self.register_buffer("H_init", torch.zeros(self.config.hidden_size, dtype=self.forward_dtype), persistent=True)
-        self.register_buffer("L_init", torch.zeros(self.config.hidden_size, dtype=self.forward_dtype), persistent=True)
+        # Initial states - small random initialization for diversity
+        self.register_buffer("H_init", trunc_normal_init_(torch.empty(self.config.hidden_size, dtype=self.forward_dtype), std=0.02), persistent=True)
+        self.register_buffer("L_init", trunc_normal_init_(torch.empty(self.config.hidden_size, dtype=self.forward_dtype), std=0.02), persistent=True)
 
         # Q head special init
         # Init Q to (almost) zero for faster learning during bootstrapping
@@ -222,8 +222,8 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
 
         # LM Outputs
         new_carry = HierarchicalReasoningModel_ACTV1InnerCarry(z_H=z_H.detach(), z_L=z_L.detach())  # New carry no grad
-        # Apply final layer norm before lm_head (standard in GPT-2/GPT-3)
-        z_H_normed = self.ln_f(z_H)
+        # Apply final RMS norm before lm_head (consistent with the model)
+        z_H_normed = rms_norm(z_H, variance_epsilon=self.final_norm_eps)
         output = self.lm_head(z_H_normed)[:, self.puzzle_emb_len:]
 
         # Q head (also use normalized hidden states)
