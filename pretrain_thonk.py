@@ -17,6 +17,7 @@ import random
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
+import wandb
 from datasets import load_dataset, interleave_datasets, Dataset, IterableDataset
 from transformers import (
     AutoTokenizer,
@@ -386,6 +387,17 @@ def main():
         else:
             config = THONKConfig()
         model = THONK(config)
+        
+        # Fix initialization of lm_head for stable training
+        # The default initialization (std=1/sqrt(hidden_size)) is too small for the output layer
+        # This causes extremely high initial losses (30-45 instead of ~10.8)
+        logger.info("Reinitializing lm_head weights for stable training...")
+        with torch.no_grad():
+            # Use a larger standard deviation for the output layer
+            # This is a common practice in language models
+            std = 0.02  # Standard initialization for output layers in transformers
+            model.hrm.lm_head.weight.data.normal_(mean=0.0, std=std)
+            logger.info(f"Reinitialized lm_head with std={std}")
     
     # Log model size
     total_params = sum(p.numel() for p in model.parameters())
@@ -408,6 +420,20 @@ def main():
         eval_dataset = dataset_handler.create_eval_dataset(data_args.eval_dataset_size)
     else:
         raise ValueError("No datasets configuration provided!")
+    
+    # Initialize W&B with THONK project name if enabled
+    if training_args.report_to and "wandb" in training_args.report_to:
+        wandb.init(
+            project="THONK",
+            name=training_args.run_name if training_args.run_name else None,
+            config={
+                "model_args": vars(model_args),
+                "data_args": vars(data_args),
+                "training_args": vars(training_args),
+                "type": "pretrain",
+            },
+            reinit=True,  # Allow multiple runs in same script
+        )
     
     # Initialize trainer
     trainer = Trainer(
