@@ -338,7 +338,8 @@ def main():
             if key in ["model_name_or_path", "tokenizer_name", "use_fast_tokenizer", "cache_dir"]:
                 model_args_dict[key] = value
             elif key in ["datasets", "block_size", "preprocessing_num_workers", 
-                        "stream_buffer_size", "shuffle_buffer_size", "eval_dataset_size"]:
+                        "stream_buffer_size", "shuffle_buffer_size", "eval_dataset_size",
+                        "max_train_samples", "overwrite_cache"]:
                 if key == "datasets":
                     data_args_dict["datasets_config"] = value
                 else:
