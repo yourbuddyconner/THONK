@@ -1,0 +1,62 @@
+# Configuration for training small THONK model
+# Use with: python train_thonk.py --config configs/train_thonk_small.yaml
+
+# Model configuration
+model_name_or_path: null  # Start from scratch
+hidden_size: 256
+num_heads: 4
+H_layers: 2
+L_layers: 2
+H_cycles: 1
+L_cycles: 1
+max_position_embeddings: 512
+use_act: true  # ACT enabled - our key innovation!
+halt_max_steps: 8  # Up to 8 thinking steps per token
+
+# Data configuration
+dataset_name: "tatsu-lab/alpaca"
+max_train_samples: null  # Use all 52,002 samples from Alpaca dataset
+max_eval_samples: 500  # Increase eval samples for better validation
+block_size: 512
+preprocessing_num_workers: 4
+
+# Training configuration
+output_dir: "./outputs/thonk-small"
+overwrite_output_dir: true
+do_train: true
+do_eval: true
+eval_strategy: "steps"
+eval_steps: 500  # Evaluate every 500 steps with more data
+
+# Training hyperparameters
+num_train_epochs: 3  # Reduced epochs since we have full dataset (52k samples)
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 4  # Effective batch size = 16
+learning_rate: 0.0006
+warmup_steps: 500  # More warmup steps for larger dataset
+weight_decay: 0.1
+
+# Optimizer settings
+adam_beta1: 0.9
+adam_beta2: 0.95  # As per LLaMA
+adam_epsilon: 0.00000001
+max_grad_norm: 1.0
+
+# Logging
+logging_steps: 50  # Log every 50 steps
+logging_first_step: true
+save_strategy: "steps"
+save_steps: 1000  # Save checkpoint every 1000 steps
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# Performance
+fp16: false  # Set to true if your GPU supports it
+bf16: false  # Set to true if your GPU supports it (better than fp16)
+dataloader_num_workers: 4
+
+# Misc
+seed: 42
+report_to: "none"  # Change to "wandb" if you want to use Weights & Biases

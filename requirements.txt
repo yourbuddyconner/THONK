@@ -9,3 +9,10 @@ wandb
 omegaconf
 hydra-core
 huggingface_hub
+transformers>=4.36.0
+datasets>=2.14.0
+accelerate>=0.25.0
+tokenizers>=0.15.0
+sentencepiece  # For LLaMA/T5 tokenizers
+evaluate  # For evaluation metrics
+pyyaml>=6.0  # For YAML config file support

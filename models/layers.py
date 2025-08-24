@@ -6,9 +6,16 @@ import torch.nn.functional as F
 
 try:
     from flash_attn_interface import flash_attn_func  # type: ignore[import]
+    FLASH_ATTN_AVAILABLE = True
 except ImportError:
-    # Fallback to FlashAttention 2
-    from flash_attn import flash_attn_func  # type: ignore[import]
+    try:
+        # Fallback to FlashAttention 2
+        from flash_attn import flash_attn_func  # type: ignore[import]
+        FLASH_ATTN_AVAILABLE = True
+    except ImportError:
+        # No flash attention available
+        FLASH_ATTN_AVAILABLE = False
+        flash_attn_func = None
 
 from models.common import trunc_normal_init_
 
@@ -88,8 +95,8 @@ class RotaryEmbedding(nn.Module):
 
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
         emb = torch.cat((freqs, freqs), dim=-1)
-        self.cos_cached = nn.Buffer(emb.cos(), persistent=False)
-        self.sin_cached = nn.Buffer(emb.sin(), persistent=False)
+        self.register_buffer("cos_cached", emb.cos(), persistent=False)
+        self.register_buffer("sin_cached", emb.sin(), persistent=False)
 
     def forward(self):
         return self.cos_cached, self.sin_cached
@@ -126,13 +133,43 @@ class Attention(nn.Module):
             cos, sin = cos_sin
             query, key = apply_rotary_pos_emb(query, key, cos, sin)
 
-        # flash attn
-        attn_output = flash_attn_func(q=query, k=key, v=value, causal=self.causal)
-        if isinstance(attn_output, tuple):  # fa2 and fa3 compatibility
-            attn_output = attn_output[0]
+        # Use flash attention if available, otherwise fall back to standard attention
+        if FLASH_ATTN_AVAILABLE:
+            # flash attn
+            attn_output = flash_attn_func(q=query, k=key, v=value, causal=self.causal)
+            if isinstance(attn_output, tuple):  # fa2 and fa3 compatibility
+                attn_output = attn_output[0]
+        else:
+            # Standard PyTorch attention as fallback
+            # Expand key and value if using GQA (grouped query attention)
+            if self.num_key_value_heads != self.num_heads:
+                num_groups = self.num_heads // self.num_key_value_heads
+                key = key.repeat_interleave(num_groups, dim=2)
+                value = value.repeat_interleave(num_groups, dim=2)
+            
+            # Transpose for attention: (batch, head, seq, dim)
+            query = query.transpose(1, 2)
+            key = key.transpose(1, 2)
+            value = value.transpose(1, 2)
+            
+            # Compute attention scores
+            scale = 1.0 / (self.head_dim ** 0.5)
+            scores = torch.matmul(query, key.transpose(-2, -1)) * scale
+            
+            # Apply causal mask if needed
+            if self.causal:
+                mask = torch.triu(torch.ones(seq_len, seq_len, device=scores.device), diagonal=1)
+                scores = scores.masked_fill(mask.bool(), float('-inf'))
+            
+            # Softmax and apply to values
+            attn_weights = F.softmax(scores, dim=-1)
+            attn_output = torch.matmul(attn_weights, value)
+            
+            # Transpose back: (batch, seq, head, dim)
+            attn_output = attn_output.transpose(1, 2)
 
         # attn_output: [batch_size, num_heads, seq_len, head_dim]
-        attn_output = attn_output.view(batch_size, seq_len, self.output_size)  # type: ignore
+        attn_output = attn_output.reshape(batch_size, seq_len, self.output_size)  # type: ignore
         return self.o_proj(attn_output)
 
 
