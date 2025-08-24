@@ -1,0 +1,63 @@
+# Configuration for training base THONK model
+# Larger model with optimal parameter distribution
+
+# Model configuration
+model_name_or_path: null  # Start from scratch
+hidden_size: 1024  # GPT-2 medium-like size
+num_heads: 16  # More attention heads
+H_layers: 6  # Deep hierarchical layers
+L_layers: 6  # Deep local layers
+H_cycles: 2  # More reasoning cycles
+L_cycles: 2  # More local cycles
+max_position_embeddings: 1024  # Longer context
+use_act: true  # ACT enabled - our key innovation!
+halt_max_steps: 16  # Up to 16 thinking steps for complex tokens
+
+# Data configuration
+dataset_name: "tatsu-lab/alpaca"
+max_train_samples: null  # Use all 52,002 samples from Alpaca dataset
+max_eval_samples: 1000  # More eval samples
+block_size: 1024
+preprocessing_num_workers: 4
+
+# Training configuration
+output_dir: "./outputs/thonk-base"
+overwrite_output_dir: true
+do_train: true
+do_eval: true
+eval_strategy: "steps"
+eval_steps: 500  # Evaluate every 500 steps
+
+# Training hyperparameters
+num_train_epochs: 3  # Train for 3 epochs
+per_device_train_batch_size: 1  # Small batch due to large model
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 16  # Effective batch size = 16
+learning_rate: 0.00025  # Lower learning rate for larger model
+warmup_steps: 2000  # Extended warmup
+weight_decay: 0.1
+
+# Optimizer settings
+adam_beta1: 0.9
+adam_beta2: 0.95  # As per LLaMA
+adam_epsilon: 0.00000001
+max_grad_norm: 1.0
+
+# Logging
+logging_steps: 50  # Log every 50 steps
+logging_first_step: true
+save_strategy: "steps"
+save_steps: 1000  # Save checkpoint every 1000 steps
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# Performance
+fp16: false  # Set to true if your GPU supports it
+bf16: false  # Set to true if your GPU supports it (better than fp16)
+dataloader_num_workers: 4
+gradient_checkpointing: false  # Enable if running out of memory
+
+# Misc
+seed: 42
+report_to: "none"  # Change to "wandb" if you want to use Weights & Biases

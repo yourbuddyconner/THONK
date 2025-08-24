@@ -14,7 +14,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import PreTrainedModel, PretrainedConfig
+from transformers import PreTrainedModel, PretrainedConfig, GenerationMixin
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.utils import logging
 
@@ -101,7 +101,7 @@ class THONKConfig(PretrainedConfig):
         self.use_cache = use_cache
 
 
-class THONK(PreTrainedModel):
+class THONK(PreTrainedModel, GenerationMixin):
     """
     THONK: Thinking Hierarchically - Optimized Neural Knowledge
     
