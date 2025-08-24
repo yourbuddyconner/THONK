@@ -53,7 +53,7 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     
     # Check if trained model exists
-    model_path = "./outputs/thonk-quick-test/final_model"
+    model_path = "./outputs/thonk-quick-test/checkpoint-3000"
     if os.path.exists(model_path):
         print(f"Loading trained model from {model_path}...")
         model = THONK.from_pretrained(model_path)

@@ -252,10 +252,19 @@ class THONK(PreTrainedModel, GenerationMixin):
         }
         
         # Initialize or retrieve carry state
-        if past_key_values is not None:
+        # Handle DynamicCache from HuggingFace generation
+        from transformers.cache_utils import DynamicCache
+        if isinstance(past_key_values, DynamicCache):
+            # DynamicCache is used by HuggingFace's generation
+            # We'll ignore it and create fresh carry
+            carry = None
+        elif past_key_values is not None:
             # Use stored carry state from previous forward pass
             carry = past_key_values
         else:
+            carry = None
+        
+        if carry is None:
             # Create fresh carry state
             # Update batch size in config (hacky but necessary)
             self.hrm_config.batch_size = batch_size
@@ -330,6 +339,7 @@ class THONK(PreTrainedModel, GenerationMixin):
         """
         
         # Use HuggingFace's generation method
+        # Note: We disable cache for now as our model doesn't support incremental generation properly yet
         return super().generate(
             input_ids=input_ids,
             max_length=max_length,
@@ -342,7 +352,7 @@ class THONK(PreTrainedModel, GenerationMixin):
             repetition_penalty=repetition_penalty,
             pad_token_id=pad_token_id if pad_token_id is not None else self.config.pad_token_id,
             eos_token_id=eos_token_id if eos_token_id is not None else self.config.eos_token_id,
-            use_cache=True,  # Always use cache for generation
+            use_cache=False,  # Disable cache until we implement proper incremental generation
             **kwargs
         )
     
