@@ -1,4 +1,4 @@
-# THONK: Thinking Hierarchically - Optimized Neural Knowledge
+# THONK: Thoughtful Hierarchical Optimization of Neural Knowledge
 
 <p align="center">
   <img src="./thonk.png" alt="THONK" width="400" />
@@ -174,7 +174,7 @@ If you use THONK in your research, please cite:
 
 ```bibtex
 @software{thonk2025,
-  title = {THONK: Thinking Hierarchically - Optimized Neural Knowledge},
+  title = {THONK: Thoughtful Hierarchical Optimization of Neural Knowledge},
   author = {COnner Swann},
   year = {2025},
   url = {https://github.com/yourbuddyconner/THONK}

@@ -1,0 +1,89 @@
+# THONK Base Model Pretraining - Quick Test Configuration
+# Smaller version for testing the pretraining pipeline
+# Can run on a single GPU with limited resources
+
+# Model configuration (same architecture, for testing)
+model_name_or_path: null
+vocab_size: 50257
+hidden_size: 1024
+num_heads: 16
+H_layers: 6
+L_layers: 6
+H_cycles: 2
+L_cycles: 2
+max_position_embeddings: 512  # Shorter context for testing
+use_act: true
+halt_max_steps: 8  # Fewer steps for testing
+
+# Dataset configuration - Smaller datasets for quick testing
+datasets:
+  # Use the SmolLM corpus Cosmopedia subset
+  - name: "HuggingFaceTB/smollm-corpus"
+    config: "cosmopedia-v2"  # Specify which subset to use
+    split: "train"
+    streaming: true
+    weight: 0.7
+    description: "Cosmopedia v2 synthetic textbooks"
+  
+  # Sample from Alpaca for instruction-following
+  - name: "tatsu-lab/alpaca"
+    split: "train"
+    streaming: true  # Small dataset, can load fully
+    weight: 0.3
+    description: "Instruction-following data"
+
+# Training configuration
+output_dir: "./outputs/thonk-base-pretrain-test"
+overwrite_output_dir: true
+do_train: true
+do_eval: true
+eval_strategy: "steps"
+eval_steps: 100  # Evaluate frequently for testing
+save_strategy: "steps"
+save_steps: 500
+save_total_limit: 2
+
+# Limited training for testing
+max_steps: 1000  # Just 1000 steps for testing
+per_device_train_batch_size: 2
+per_device_eval_batch_size: 2
+gradient_accumulation_steps: 4  # Effective batch size = 8
+gradient_checkpointing: true  # Save memory
+
+# Learning rate schedule
+learning_rate: 3e-4
+lr_scheduler_type: "cosine"
+warmup_steps: 100
+weight_decay: 0.1
+adam_beta1: 0.9
+adam_beta2: 0.95
+adam_epsilon: 1e-8
+max_grad_norm: 1.0
+
+# Data processing
+block_size: 512  # Shorter sequences for testing
+preprocessing_num_workers: 4
+dataloader_num_workers: 2
+stream_buffer_size: 1000  # Smaller buffers for testing
+shuffle_buffer_size: 5000
+eval_dataset_size: 500  # Small eval set
+
+# Tokenizer
+tokenizer_name: "gpt2"
+use_fast_tokenizer: true
+
+# Performance
+fp16: false  # Set to true if your GPU supports it
+bf16: false  # Set to true for A100/H100 GPUs
+tf32: false  # Set to true only for Ampere GPUs (RTX 30xx, A100)
+optim: "adamw_torch"
+
+# Logging
+logging_steps: 10
+logging_first_step: true
+report_to: "none"  # Disable wandb for testing
+
+# Misc
+seed: 42
+dataloader_drop_last: true
+remove_unused_columns: false

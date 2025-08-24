@@ -1,5 +1,5 @@
 """
-THONK: Thinking Hierarchically - Optimized Neural Knowledge
+THONK: Thoughtful Hierarchical Optimization of Neural Knowledge
 
 A text generation model that combines hierarchical reasoning with adaptive
 computation time, designed for efficient learning from minimal data.
@@ -103,7 +103,7 @@ class THONKConfig(PretrainedConfig):
 
 class THONK(PreTrainedModel, GenerationMixin):
     """
-    THONK: Thinking Hierarchically - Optimized Neural Knowledge
+    THONK: Thoughtful Hierarchical Optimization of Neural Knowledge
     
     A language model that learns efficiently from minimal data through
     hierarchical reasoning and (optionally) adaptive computation time.

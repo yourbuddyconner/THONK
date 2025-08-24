@@ -1,0 +1,125 @@
+# THONK Base Model Pretraining Configuration
+# Using high-quality pretraining datasets from HuggingFace
+# Target: ~110M parameters for efficient pretraining
+
+# Model configuration
+model_name_or_path: null  # Start from scratch
+vocab_size: 50257  # GPT-2 vocabulary
+hidden_size: 1024  # Base model size
+num_heads: 16  # 16 attention heads
+H_layers: 6  # Hierarchical reasoning layers
+L_layers: 6  # Local processing layers
+H_cycles: 2  # Reasoning cycles
+L_cycles: 2  # Local cycles
+max_position_embeddings: 2048  # Extended context for pretraining
+use_act: true  # Adaptive Computation Time enabled
+halt_max_steps: 12  # Up to 12 thinking steps per token
+
+# Dataset configuration - High-quality pretraining mix
+# Based on HuggingFace's proven pretraining recipe
+datasets:
+  # Primary high-quality web data (40% of mix)
+  - name: "HuggingFaceFW/fineweb-edu"
+    split: "train"
+    streaming: true  # Stream to handle large dataset
+    weight: 1.0
+    description: "Educational web content - 3.5B tokens of high-quality educational material"
+  
+# Training configuration
+output_dir: "./outputs/thonk-base-pretrain"
+overwrite_output_dir: true
+do_train: true
+do_eval: true
+eval_strategy: "steps"
+eval_steps: 5000  # Evaluate every 5k steps
+save_strategy: "steps"
+save_steps: 10000  # Save checkpoint every 10k steps
+save_total_limit: 5  # Keep last 5 checkpoints
+
+# Pretraining hyperparameters (optimized for 110M model)
+max_steps: 500000  # 500k training steps
+per_device_train_batch_size: 4  # Adjust based on GPU memory
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 8  # Effective batch size = 32
+gradient_checkpointing: true  # Enable for memory efficiency
+
+# Learning rate schedule (Chinchilla-optimal)
+learning_rate: 6e-4  # Peak learning rate
+lr_scheduler_type: "cosine"
+warmup_steps: 10000  # 2% warmup
+weight_decay: 0.1
+adam_beta1: 0.9
+adam_beta2: 0.95
+adam_epsilon: 1e-8
+max_grad_norm: 1.0
+
+# Data processing
+block_size: 2048  # Sequence length
+preprocessing_num_workers: 8
+dataloader_num_workers: 4
+dataloader_pin_memory: true
+
+# Tokenizer
+tokenizer_name: "gpt2"  # Use GPT-2 tokenizer
+use_fast_tokenizer: true
+
+# Performance optimizations
+fp16: false  # Set true for V100/A100
+bf16: false  # Set true for A100/H100 (recommended)
+tf32: false  # Set true ONLY for Ampere GPUs (RTX 30xx, A100)
+optim: "adamw_torch"  # Use standard optimizer (change to adamw_torch_fused on newer GPUs)
+
+# Evaluation configuration
+eval_accumulation_steps: 10
+eval_dataset_size: 10000  # Number of samples for evaluation
+metric_for_best_model: "eval_loss"
+greater_is_better: false
+load_best_model_at_end: true
+
+# Logging and monitoring
+logging_steps: 100
+logging_first_step: true
+logging_nan_inf_filter: true
+report_to: "wandb"  # Enable Weights & Biases logging
+wandb_project: "THONK-Pretraining"
+wandb_name: "thonk-base-pretrain"
+wandb_tags: ["pretraining", "base", "110M"]
+
+# Early stopping (optional)
+early_stopping_patience: 10  # Stop if no improvement for 10 evals
+early_stopping_threshold: 0.0001
+
+# Hardware settings
+local_rank: -1  # Set for distributed training
+ddp_backend: "nccl"  # For multi-GPU training
+dataloader_drop_last: true  # Drop incomplete batches
+remove_unused_columns: false
+
+# Reproducibility
+seed: 42
+data_seed: 42
+
+# Memory management
+max_memory_MB: null  # Set based on your GPU (e.g., 40000 for A100-40GB)
+auto_find_batch_size: false  # Set true to automatically find optimal batch size
+
+# Streaming configuration
+stream_buffer_size: 10000  # Buffer size for streaming datasets
+shuffle_buffer_size: 100000  # Shuffle buffer for better randomization
+
+# Model-specific settings
+rope_theta: 10000.0  # RoPE base frequency
+rms_norm_eps: 1e-5  # RMS normalization epsilon
+expansion: 2.66667  # FFN expansion factor (8/3 for SwiGLU)
+
+# Training resume
+resume_from_checkpoint: null  # Set to checkpoint path to resume training
+ignore_data_skip: false  # Whether to skip data examples already seen
+
+# Notes:
+# - This config uses proven pretraining datasets from HuggingFace's collection
+# - The dataset mix is inspired by successful models like SmolLM and Phi
+# - Adjust batch sizes based on your GPU memory (A100-40GB recommended)
+# - Enable bf16=true on modern GPUs for 2x memory efficiency
+# - Total training tokens: ~15-20B tokens (adjust max_steps as needed)
+# - Estimated training time: 3-5 days on 8xA100 GPUs
